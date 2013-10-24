@@ -1,0 +1,4 @@
+EPUBChop
+========
+
+Creates EPUB previews
