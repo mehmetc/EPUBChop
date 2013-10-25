@@ -1,0 +1,67 @@
+#!/usr/bin/env ruby
+$LOAD_PATH << './lib'
+require 'epubchop'
+require 'optparse'
+require 'pp'
+
+
+class ConfigurationParser
+  def self.parse(args)
+    base=%w(percentage base)
+    options={}
+    opts = OptionParser.new do |parser|
+      parser.banner = "Usage: #{__FILE__} [options] epub"
+
+      parser.on("-w", "--words [DECIMAL]", OptionParser::DecimalInteger, "number of words to take into new epub") do |w|
+        options[:words] = w
+      end
+
+      parser.on("-b", "--base [TYPE]", base, "how to interpret the words option", "(#{base.join(', ')})") do |b|
+        options[:base] = b
+      end
+
+      parser.on("-1", "--text1 STRING", "first line of skipped page") do |t|
+        options[:text1] = t
+      end
+
+      parser.on("-2", "--text2 STRING", "second line of skipped page") do |t|
+        options[:text2] = t
+      end
+
+      parser.on_tail("-h", "--help", "Show this message") do
+        puts parser.help
+        exit
+      end
+    end
+    opts.parse!(args)
+    options
+  end
+end
+
+begin
+
+options=ConfigurationParser.parse(ARGV)
+
+if ARGV.size == 1
+  filename = File.expand_path(ARGV[0])
+  words = options[:words]
+  base  = options[:base]
+  text  = []
+  text << options[:text1] if options.has_key?(:text1)
+  text << options[:text2] if options.has_key?(:text2)
+
+  puts 'loading EPUB'
+  b=EPUBChop.get(filename, {:base => base.to_s, :words => words, :text => text})
+  c=b.chop
+
+  FileUtils.move(c, "chopped_#{File.basename(filename)}")
+else
+
+  exit 2
+end
+
+rescue Exception => e
+  puts "An error occured\n#{e.message}"
+  puts e.backtrace
+  exit 1
+end
