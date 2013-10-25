@@ -127,11 +127,11 @@ module EPUBChop
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-<title>intentionally left blank</title>
+<title>Read more</title>
 </head>
 <body>
 <center>
-<div style='width:100%;border:1px solid black;margin-top:20px;'>
+<div style='width:100%;border:1px solid black;margin-top:20px;padding:5px'>
 <div><h2>#{@text1}</h2></div>
 <div><h2>#{@text2}</h2></div>
 </div>
