@@ -1,11 +1,29 @@
 $LOAD_PATH << './'
 require 'spec_helper'
 
-describe EPUBChop do
-  describe 'get' do
-    puts "1234"
-    chop_mock = double
-    EPUBChop::Chop.should_receive(:new) {chop_mock}
-    EPUBChop.get().should == chop_mock
-  end
+describe 'EPUBChop' do
+    before(:all) do
+      #chop EPUB at 10% of total words
+      @chop = EPUBChop.get('Verne_20000_West_pg11393.epub', {:base => :percentage, :words => 10})
+    end
+
+    it 'load an epub' do
+      @chop.should be_kind_of EPUBChop::Chop
+    end
+
+    it 'should return the total words' do
+      @chop.total_words.should == 73259
+    end
+
+    it 'should respect a 5% deviation of allowed words' do
+      total_word_count = @chop.total_words
+      allowed_word_count = (total_word_count/100) * @chop.words
+      real_allowed_word_count = @chop.resource_allowed_word_count.values.inject(0){|sum, i| sum + i}
+
+      deviation = (((real_allowed_word_count - allowed_word_count).abs / allowed_word_count.to_f) * 100).to_i
+      puts deviation
+
+      deviation.should < 5
+    end
+
 end
