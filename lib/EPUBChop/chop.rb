@@ -6,19 +6,10 @@ require 'securerandom'
 
 module EPUBChop
   class Chop
-    attr_reader :book, :resource_word_count, :resource_allowed_word_count, :text1, :text2
+    attr_reader :book, :words, :base, :resource_word_count, :resource_allowed_word_count, :text1, :text2
 
     def initialize(input, options ={})
-      @output = options[:output] || "chopped_#{input}"
-      words  = options[:words] || 10
-      base   = options[:base] || :absolute
-      if options[:text].is_a?(Array)
-        @text1 = options[:text][0] || 'Wil je verder lezen.'
-        @text2 = options[:text][1] || 'Leen het volledig ebook uit in je bibliotheek.'
-      else
-        @text1 = options[:text] || 'Wil je verder lezen. Leen het volledig ebook uit in je bibliotheek.'
-        @text2 = ''
-      end
+      set_defaults(options)
 
 
       raise 'Please supply an input file name' if input.nil?
@@ -26,20 +17,27 @@ module EPUBChop
       #count the number of words in a file
       @resource_word_count = count_words(input)
 
-      #figure out what to return
-      @resource_allowed_word_count = files_allowed(allowed_words(words, base))
     end
 
     def total_words
       @resource_word_count.values.inject(0){|sum, i| sum + i}
     end
 
-    def chop
+    def resource_allowed_word_count
+      #figure out what to return
+      @resource_allowed_word_count ||= files_allowed(allowed_words(@words, @base))
+    end
+
+    def chop(options = {})
+      set_defaults(options)
+
       puts "Chopping file"
       original_zip_file = @book.table_of_contents.parser.zip_file
       #unzip in temp dir
       extract_dir = Dir.mktmpdir('epub_extract')
         original_zip_file.entries.each do |e|
+            file_dir = File.split(e.name)[0]
+            Dir.mkdir(File.join(extract_dir,file_dir)) unless Dir.exists?(File.join(extract_dir,file_dir)) || file_dir.eql?(".")
             original_zip_file.extract(e, File.join(extract_dir,e.name))
         end
 
@@ -47,7 +45,7 @@ module EPUBChop
       filename_list = @resource_word_count.keys
       filename_list.each do |filename|
         original_file_size = @resource_word_count[filename]
-        processed_file_size = @resource_allowed_word_count[filename]
+        processed_file_size = resource_allowed_word_count[filename]
 
         if original_file_size != processed_file_size
           if processed_file_size == 0
@@ -110,6 +108,8 @@ module EPUBChop
       zipfile.close
 
       return new_ebook_name_path
+    rescue Zip::ZipError => e
+      raise RuntimeError, ''
     rescue Exception => e
       puts "Chopping went wrong. #{e.message}"
       puts e.backtrace
@@ -120,6 +120,18 @@ module EPUBChop
     end
 
     private
+
+    def set_defaults(options)
+      @words = options[:words] || 10
+      @base = options[:base] || :percentage
+      if options[:text].is_a?(Array)
+        @text1 = options[:text][0] || 'Continue reading?'
+        @text2 = options[:text][1] || 'Go to your local library or buy the book.'
+      else
+        @text1 = options[:text] || 'Continue reading? Go to your local library or buy the book.'
+        @text2 = ''
+      end
+    end
 
     def empty_file
       data = <<DATA
@@ -145,7 +157,7 @@ DATA
       @book = EPUBInfo.get(input)
       resource_word_count = {}
       if @book
-        @book.table_of_contents.resources.each do |resource|
+        @book.table_of_contents.resources.spine.each do |resource|
           raw = Nokogiri::HTML(@book.table_of_contents.resources[resource[:uri]]) do |config|
             config.noblanks.nonet
           end

@@ -51,8 +51,8 @@ if ARGV.size == 1
   text << options[:text2] if options.has_key?(:text2)
 
   puts 'loading EPUB'
-  b=EPUBChop.get(filename, {:base => base.to_s, :words => words, :text => text})
-  c=b.chop
+  b=EPUBChop.get(filename)
+  c=b.chop({:base => base.to_s, :words => words, :text => text})
 
   FileUtils.move(c, "chopped_#{File.basename(filename)}")
 else
