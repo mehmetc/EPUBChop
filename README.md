@@ -1,4 +1,4 @@
-EPUBChop
+EPUBChop [![Continuous Integration](https://travis-ci.org/mehmetc/EPUBChop.png?branch=master)](http://travis-ci.org/mehmetc/EPUBChop)
 ========
 
 Creates EPUB previews
