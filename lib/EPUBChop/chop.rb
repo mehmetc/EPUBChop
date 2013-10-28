@@ -31,7 +31,6 @@ module EPUBChop
     def chop(options = {})
       set_defaults(options)
 
-      puts "Chopping file"
       original_zip_file = @book.table_of_contents.parser.zip_file
       #unzip in temp dir
       extract_dir = Dir.mktmpdir('epub_extract')
@@ -99,7 +98,6 @@ module EPUBChop
       new_ebook_name_path = new_ebook_name.path
       new_ebook_name_path.gsub!('-', '')
 
-      puts "rebuilding EPUB"
       zipfile = Zip::File.open(new_ebook_name_path, Zip::File::CREATE)
 
         Dir[File.join(extract_dir, '**', '**')].each do |file|
@@ -174,10 +172,10 @@ DATA
     def allowed_words(words, base)
       @allowed_words ||= begin
         case base.to_s
-          when 'absolute'
-            @allowed_words = words
           when 'percentage'
             @allowed_words = (total_words * (words / 100.0)).to_i
+          else
+            @allowed_words = words
         end
       end
 
