@@ -12,7 +12,11 @@ describe 'EPUBChop' do
     end
 
     it 'should return the total words' do
-      @chop.total_words.should == 73260
+      if RUBY_PLATFORM.eql?('java')
+        @chop.total_words.should == 71573
+      else
+        @chop.total_words.should == 73260
+      end
     end
 
     it 'should respect a 5% deviation of allowed words' do

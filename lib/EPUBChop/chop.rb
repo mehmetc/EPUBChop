@@ -2,7 +2,6 @@ require 'nokogiri'
 require 'epubinfo'
 require 'tempfile'
 require 'zip'
-require 'securerandom'
 
 module EPUBChop
   class Chop
@@ -20,7 +19,7 @@ module EPUBChop
     end
 
     def total_words
-      @resource_word_count.values.inject(0){|sum, i| sum + i}
+      @resource_word_count.values.inject(0) { |sum, i| sum + i }
     end
 
     def resource_allowed_word_count
@@ -34,11 +33,11 @@ module EPUBChop
       original_zip_file = @book.table_of_contents.parser.zip_file
       #unzip in temp dir
       extract_dir = Dir.mktmpdir('epub_extract')
-        original_zip_file.entries.each do |e|
-            file_dir = File.split(e.name)[0]
-            Dir.mkdir(File.join(extract_dir,file_dir)) unless Dir.exists?(File.join(extract_dir,file_dir)) || file_dir.eql?(".")
-            original_zip_file.extract(e, File.join(extract_dir,e.name))
-        end
+      original_zip_file.entries.each do |e|
+        file_dir = File.split(e.name)[0]
+        Dir.mkdir(File.join(extract_dir, file_dir)) unless Dir.exists?(File.join(extract_dir, file_dir)) || file_dir.eql?(".")
+        original_zip_file.extract(e, File.join(extract_dir, e.name))
+      end
 
       #fix spine files
       filename_list = @resource_word_count.keys
@@ -58,18 +57,20 @@ module EPUBChop
             resource = Nokogiri::XML(@book.table_of_contents.resources[filename]) do |config|
               config.noblanks.nonet
             end
+            resource.css('script').remove
+            resource.css('style').remove
             resource_text = resource.at_css('body').text.split[0..processed_file_size]
             resource_text_length = resource_text.length
 
             # get a string that can be found
             data = nil
             window_begin = 5
-            window_end   = 0
+            window_end = 0
             while data.nil?
               look_for = resource_text[(processed_file_size - window_begin)..(processed_file_size - window_end)].join(' ')
               data = resource.at_css("p:contains('#{look_for}')")
               window_begin += 1
-              window_end   += 1
+              window_end += 1
             end
 
             #limit on found string
@@ -94,15 +95,15 @@ module EPUBChop
       #TODO:remove unwanted media
 
       #zip new ebook
-      new_ebook_name = Tempfile.new(['epub', '.epub'], '/tmp')
+      new_ebook_name = Tempfile.new(['epub', '.epub'], Dir.tmpdir)
       new_ebook_name_path = new_ebook_name.path
       new_ebook_name_path.gsub!('-', '')
 
       zipfile = Zip::File.open(new_ebook_name_path, Zip::File::CREATE)
 
-        Dir[File.join(extract_dir, '**', '**')].each do |file|
-          zipfile.add(file.sub("#{extract_dir}/", ''), file)
-        end
+      Dir[File.join(extract_dir, '**', '**')].each do |file|
+        zipfile.add(file.sub("#{extract_dir}/", ''), file)
+      end
       zipfile.close
 
       return new_ebook_name_path
@@ -186,7 +187,7 @@ DATA
       resource_allowed_word_count = @resource_word_count.select do |r|
         (word_counter += @resource_word_count[r]) < allowed_words
       end
-      word_counter = resource_allowed_word_count.values.inject(0){|sum, i| sum + i}
+      word_counter = resource_allowed_word_count.values.inject(0) { |sum, i| sum + i }
 
       how_many_words_left = allowed_words - word_counter
       if how_many_words_left > 0
