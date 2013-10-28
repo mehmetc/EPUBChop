@@ -4,7 +4,7 @@ require 'spec_helper'
 describe 'EPUBChop' do
     before(:all) do
       #chop EPUB at 10% of total words
-      @chop = EPUBChop.get('Verne_20000_West_pg11393.epub', {:base => :percentage, :words => 10})
+      @chop = EPUBChop.get('./spec/Verne_20000_West_pg11393.epub', {:base => :percentage, :words => 10})
     end
 
     it 'load an epub' do
