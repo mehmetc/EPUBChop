@@ -1,9 +1,7 @@
 #!/usr/bin/env ruby
 $LOAD_PATH << './lib'
-require 'epubchop'
+require 'EPUBChop'
 require 'trollop'
-require 'pp'
-
 
 options = Trollop::options do
   version = "EPUBChop #{EPUBChop::VERSION} (c) 2013 LIBIS/KULeuven, Mehmet Celik"

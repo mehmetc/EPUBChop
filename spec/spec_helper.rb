@@ -7,7 +7,7 @@ rescue Bundler::BundlerError => e
   exit e.status_code
 end
 
-require 'epubchop'
+require 'EPUBChop'
 
 RSpec.configure do |config|
 end

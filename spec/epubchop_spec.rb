@@ -12,7 +12,7 @@ describe 'EPUBChop' do
     end
 
     it 'should return the total words' do
-      @chop.total_words.should == 73259
+      @chop.total_words.should == 73260
     end
 
     it 'should respect a 5% deviation of allowed words' do
