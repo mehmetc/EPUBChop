@@ -10,7 +10,7 @@ Gem::Specification.new do |spec|
   spec.email         = ["mehmet@celik.be"]
   spec.description   = %q{Create EPUB previews}
   spec.summary       = %q{Removes unwanted content from an EPUB}
-  spec.homepage      = ""
+  spec.homepage      = "https://github.com/mehmetc/EPUBChop"
   spec.license       = "MIT"
 
   spec.files         = `git ls-files`.split($/)

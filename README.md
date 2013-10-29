@@ -19,9 +19,13 @@ where [options] are:
 ```
 
 ### Example:
+Create a new EPUB with 10% of the content all other pages should contain the lines "Want to read more? Buy the book!"
 ```ruby
 epubchop --words 10 --base percentage -line1 "Want to read more?" -line2 "Buy the book!" my.epub
 ```
+
+This gem depends on [![epubinfo](http://github.com/chdorner/epubinfo)] I made some additions to the gem but they are still in a branch. Until they get accepted I'll be using the [![epubinfo_with_toc](https://github.com/mehmetc/epubinfo/tree/table_of_contents)]
+gem.
 
 ## Contributing to EPUBChop
 * Fork the project.
