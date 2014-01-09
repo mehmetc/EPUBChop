@@ -10,7 +10,6 @@ module EPUBChop
     def initialize(input, options ={})
       set_defaults(options)
 
-
       raise 'Please supply an input file name' if input.nil?
 
       #count the number of words in a file
@@ -35,7 +34,7 @@ module EPUBChop
       extract_dir = Dir.mktmpdir('epub_extract')
       original_zip_file.entries.each do |e|
         file_dir = File.split(e.name)[0]
-        Dir.mkdir(File.join(extract_dir, file_dir)) unless Dir.exists?(File.join(extract_dir, file_dir)) || file_dir.eql?(".")
+        FileUtils.mkdir_p(File.join(extract_dir, file_dir)) unless Dir.exists?(File.join(extract_dir, file_dir)) || file_dir.eql?(".")
         original_zip_file.extract(e, File.join(extract_dir, e.name))
       end
 
