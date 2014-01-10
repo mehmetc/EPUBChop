@@ -151,11 +151,17 @@ module EPUBChop
 DATA
     end
 
+    def empty_file_with_cover
+
+    end
+
+
+
     def count_words(input)
       @book = EPUBInfo.get(input)
       resource_word_count = {}
       if @book
-        @book.table_of_contents.resources.spine.each do |resource|
+        @book.table_of_contents.resources.ncx.each do |resource|
           raw = Nokogiri::HTML(@book.table_of_contents.resources[resource[:uri]]) do |config|
             config.noblanks.nonet
           end
