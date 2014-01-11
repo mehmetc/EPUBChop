@@ -4,7 +4,7 @@ require 'spec_helper'
 describe 'EPUBChop' do
     before(:all) do
       #chop EPUB at 10% of total words
-      @chop = EPUBChop.get('./spec/Verne_20000_West_pg11393.epub', {:base => :percentage, :words => 10})
+      @chop = EPUBChop.get('./spec/epub/Verne_20000_West_pg11393.epub', {:base => :percentage, :words => 10})
     end
 
     it 'load an epub' do
@@ -15,7 +15,7 @@ describe 'EPUBChop' do
       if RUBY_PLATFORM.eql?('java')
         @chop.total_words.should == 71573
       else
-        @chop.total_words.should == 73260
+        @chop.total_words.should == 32511
       end
     end
 

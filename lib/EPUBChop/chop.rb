@@ -151,12 +151,6 @@ module EPUBChop
 DATA
     end
 
-    def empty_file_with_cover
-
-    end
-
-
-
     def count_words(input)
       @book = EPUBInfo.get(input)
       resource_word_count = {}
