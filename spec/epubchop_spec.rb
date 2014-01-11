@@ -13,7 +13,7 @@ describe 'EPUBChop' do
 
     it 'should return the total words' do
       if RUBY_PLATFORM.eql?('java')
-        @chop.total_words.should == 71573
+        @chop.total_words.should == 31765
       else
         @chop.total_words.should == 32511
       end
