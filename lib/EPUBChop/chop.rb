@@ -49,7 +49,7 @@ module EPUBChop
             FileUtils.rm("#{extract_dir}/#{filename}", :force => true)
             FileUtils.touch "#{extract_dir}/#{filename}"
             File.open("#{extract_dir}/#{filename}", 'w') do |f|
-              f.puts empty_file
+              f.puts empty_file_with_cover(filename)
             end
 
           else
@@ -63,13 +63,24 @@ module EPUBChop
 
             # get a string that can be found
             data = nil
-            window_begin = 5
+            window_begin = default_window_begin = 5
             window_end = 0
             while data.nil?
-              look_for = resource_text[(processed_file_size - window_begin)..(processed_file_size - window_end)].join(' ')
-              data = resource.at_css("p:contains('#{look_for}')")
-              window_begin += 1
-              window_end += 1
+              look_for = resource_text[(processed_file_size - window_begin)..(processed_file_size - window_end)]
+
+              if look_for.nil?
+                window_begin = default_window_begin += 5
+                window_end = 0
+              else
+                data = resource.at_css("*:contains('#{look_for.join(' ')}')")
+                window_begin -= 1
+                window_end += 1
+
+                if window_begin == window_end
+                  window_begin = default_window_begin += 5
+                  window_end = 0
+                end
+              end
             end
 
             #limit on found string
@@ -151,11 +162,59 @@ module EPUBChop
 DATA
     end
 
+    def empty_file_with_cover(filename)
+      number_of_subdirectories = filename.split('/').size - 1
+
+      cover_path = ''
+      number_of_subdirectories.times{ cover_path += '../'}
+
+      cover_path += @book.cover.exists? ? @book.cover.exists?.to_s : ''
+
+      data = <<DATA
+<?xml version="1.0" encoding="utf-8" standalone="no"?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN" "http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+      <title>Read more</title>
+  </head>
+
+  <body>
+  <div style="margin-top:100px;width:500px;margin-left:auto;margin-right:auto;">
+    <div style='text-align:center;'>
+      <h2>#{@text1}</h2>
+      <span>#{@text2}</span>
+    </div>
+
+    <div style="margin-top:20px;">
+      <div style="float:left;margin-right:30px;max-height: 190px; min-height: 120px; width: 125px;">
+        <img src="#{cover_path}" alt="" style="width:100%" />
+      </div>
+
+      <div style='padding-top:10px;'>
+        <h3>#{@book.titles.first}</h3>
+      </div>
+
+      <div>
+        <h4>#{@book.creators.first.name}</h4>
+      </div>
+
+    </div>
+
+    <br />
+
+    <div style="clear:both;text-align:center;font-size:0.5em;"> #{@book.rights} </div>
+  </div>
+</body>
+</html>
+
+DATA
+    end
+
     def count_words(input)
       @book = EPUBInfo.get(input)
       resource_word_count = {}
       if @book
-        @book.table_of_contents.resources.ncx.each do |resource|
+        @book.table_of_contents.resources.spine.each do |resource|
           raw = Nokogiri::HTML(@book.table_of_contents.resources[resource[:uri]]) do |config|
             config.noblanks.nonet
           end
@@ -186,6 +245,7 @@ DATA
       resource_allowed_word_count = @resource_word_count.select do |r|
         (word_counter += @resource_word_count[r]) < allowed_words
       end
+
       word_counter = resource_allowed_word_count.values.inject(0) { |sum, i| sum + i }
 
       how_many_words_left = allowed_words - word_counter
