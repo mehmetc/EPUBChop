@@ -30,6 +30,27 @@ module EPUBChop
       set_defaults(options)
 
       original_zip_file = @book.table_of_contents.parser.zip_file
+      extract_dir = extract_epub_to_tmp_dir(original_zip_file)
+
+      chop_files_in_tmp_dir(extract_dir)
+      remove_unused_media_from_tmp_dir(extract_dir)
+
+
+      return rebuild_epub_from_tmp_dir(extract_dir)
+    rescue Zip::ZipError => e
+      raise RuntimeError, ''
+    rescue Exception => e
+      puts "Chopping went wrong. #{e.message}"
+      puts e.backtrace
+
+      return nil
+    ensure
+      FileUtils.remove_entry_secure(extract_dir)
+    end
+
+    private
+
+    def extract_epub_to_tmp_dir(original_zip_file)
       #unzip in temp dir
       extract_dir = Dir.mktmpdir('epub_extract')
       original_zip_file.entries.each do |e|
@@ -38,6 +59,11 @@ module EPUBChop
         original_zip_file.extract(e, File.join(extract_dir, e.name))
       end
 
+      extract_dir
+    end
+
+
+    def chop_files_in_tmp_dir(extract_dir)
       #fix spine files
       filename_list = @resource_word_count.keys
       filename_list.each do |filename|
@@ -102,8 +128,9 @@ module EPUBChop
           end
         end
       end
-      #TODO:remove unwanted media
+    end
 
+    def rebuild_epub_from_tmp_dir(extract_dir)
       #zip new ebook
       new_ebook_name = Tempfile.new(['epub', '.epub'], Dir.tmpdir)
       new_ebook_name_path = new_ebook_name.path
@@ -111,24 +138,55 @@ module EPUBChop
 
       zipfile = Zip::File.open(new_ebook_name_path, Zip::File::CREATE)
 
-      Dir[File.join(extract_dir, '**', '**')].each do |file|
+      epub_files = Dir[File.join(extract_dir, '**', '**')]
+
+      #minetype should be the first entry and should not be zipped. Else FIDO will not know that this is an EPUB
+      mimetype = epub_files.delete("#{extract_dir}/mimetype")
+      mimetype_entry = Zip::Entry.new(zipfile, mimetype.sub("#{extract_dir}/", ''), '', '', 0,0, Zip::Entry::STORED)
+      zipfile.add(mimetype_entry, mimetype) unless mimetype.nil?
+
+      #all the other files
+      epub_files.each do |file|
         zipfile.add(file.sub("#{extract_dir}/", ''), file)
       end
       zipfile.close
 
       return new_ebook_name_path
-    rescue Zip::ZipError => e
-      raise RuntimeError, ''
-    rescue Exception => e
-      puts "Chopping went wrong. #{e.message}"
-      puts e.backtrace
-
-      return nil
-    ensure
-      FileUtils.remove_entry_secure(extract_dir)
     end
 
-    private
+    def remove_unused_media_from_tmp_dir(extract_dir)
+      #TODO: remove other media
+      #TODO: rebuild toc.ncx and content.opf
+      remove_unused_images_from_tmp_dir(extract_dir)
+    end
+
+    def remove_unused_images_from_tmp_dir(extract_dir)
+      puts "removing unwanted media"
+      to_be_deleted_images = []
+      not_to_be_deleted_images = []
+      all_images = @book.table_of_contents.resources.images.map {|i| i[:uri]}
+      @book.table_of_contents.resources.html.each do |resource|
+        file = Nokogiri::HTML(File.read("#{extract_dir}/#{resource[:uri]}"))
+
+        all_images.each do |image|
+          i = image.split('/').last
+          data = file.at_css("img[src$='#{i}']")
+
+          if data
+            not_to_be_deleted_images << image
+          end
+        end
+      end
+
+      to_be_deleted_images = (all_images - not_to_be_deleted_images)
+      to_be_deleted_images.each do |image|
+        puts "\t\tremoving #{image}"
+        File.delete("#{extract_dir}/#{image}")
+      end
+
+      to_be_deleted_images
+    end
+
 
     def set_defaults(options)
       @words = options[:words] || 10
@@ -140,26 +198,6 @@ module EPUBChop
         @text1 = options[:text] || 'Continue reading? Go to your local library or buy the book.'
         @text2 = ''
       end
-    end
-
-    def empty_file
-      data = <<DATA
-<?xml version="1.0" encoding="utf-8" standalone="no"?>
-<!DOCTYPE html>
-<html xmlns="http://www.w3.org/1999/xhtml">
-<head>
-<title>Read more</title>
-</head>
-<body>
-<center>
-<div style='width:100%;border:1px solid black;margin-top:20px;padding:5px'>
-<div><h2>#{@text1}</h2></div>
-<div><h2>#{@text2}</h2></div>
-</div>
-</center>
-</body>
-</html>
-DATA
     end
 
     def empty_file_with_cover(filename)
@@ -181,8 +219,8 @@ DATA
   <body>
   <div style="margin-top:100px;width:500px;margin-left:auto;margin-right:auto;">
     <div style='text-align:center;'>
-      <h2>#{@text1}</h2>
-      <span>#{@text2}</span>
+      <h2>#{CGI.escape_html(@text1)}</h2>
+      <span>#{CGI.escape_html(@text2)}</span>
     </div>
 
     <div style="margin-top:20px;">
@@ -191,18 +229,18 @@ DATA
       </div>
 
       <div style='padding-top:10px;'>
-        <h3>#{@book.titles.first}</h3>
+        <h3>#{CGI.escape_html(@book.titles.first)}</h3>
       </div>
 
       <div>
-        <h4>#{@book.creators.first.name}</h4>
+        <h4>#{CGI.escape_html(@book.creators.first.name)}</h4>
       </div>
 
     </div>
 
     <br />
 
-    <div style="clear:both;text-align:center;font-size:0.5em;"> #{@book.rights} </div>
+    <div style="clear:both;text-align:center;font-size:0.5em;"> #{CGI.escape_html(@book.rights)} </div>
   </div>
 </body>
 </html>
@@ -214,7 +252,7 @@ DATA
       @book = EPUBInfo.get(input)
       resource_word_count = {}
       if @book
-        @book.table_of_contents.resources.spine.each do |resource|
+        @book.table_of_contents.resources.ncx.each do |resource|
           raw = Nokogiri::HTML(@book.table_of_contents.resources[resource[:uri]]) do |config|
             config.noblanks.nonet
           end
