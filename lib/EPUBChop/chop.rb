@@ -38,7 +38,7 @@ module EPUBChop
 
       return rebuild_epub_from_tmp_dir(extract_dir)
     rescue Zip::ZipError => e
-      raise RuntimeError, ''
+      raise RuntimeError, "Error processing EPUB. #{e.message}"
     rescue Exception => e
       puts "Chopping went wrong. #{e.message}"
       puts e.backtrace
@@ -55,7 +55,7 @@ module EPUBChop
       extract_dir = Dir.mktmpdir('epub_extract')
       original_zip_file.entries.each do |e|
         file_dir = File.split(e.name)[0]
-        FileUtils.mkdir_p(File.join(extract_dir, file_dir)) unless Dir.exists?(File.join(extract_dir, file_dir)) || file_dir.eql?(".")
+        FileUtils.mkdir_p(File.join(extract_dir, file_dir)) unless Dir.exists?(File.join(extract_dir, file_dir)) || file_dir.eql?('.')
         original_zip_file.extract(e, File.join(extract_dir, e.name))
       end
 
@@ -79,13 +79,14 @@ module EPUBChop
             end
 
           else
+            #noinspection RubyResolve
             resource = Nokogiri::XML(@book.table_of_contents.resources[filename]) do |config|
               config.noblanks.nonet
             end
             resource.css('script').remove
             resource.css('style').remove
             resource_text = resource.at_css('body').text.split[0..processed_file_size]
-            resource_text_length = resource_text.length
+            #resource_text_length = resource_text.length
 
             # get a string that can be found
             data = nil
@@ -151,18 +152,19 @@ module EPUBChop
       end
       zipfile.close
 
-      return new_ebook_name_path
+      new_ebook_name_path
     end
 
+    #noinspection RubyInstanceMethodNamingConvention
     def remove_unused_media_from_tmp_dir(extract_dir)
       #TODO: remove other media
       #TODO: rebuild toc.ncx and content.opf
       remove_unused_images_from_tmp_dir(extract_dir)
     end
 
+    #noinspection RubyInstanceMethodNamingConvention
     def remove_unused_images_from_tmp_dir(extract_dir)
-      puts "removing unwanted media"
-      to_be_deleted_images = []
+      puts 'removing unused media'
       not_to_be_deleted_images = []
       all_images = @book.table_of_contents.resources.images.map {|i| i[:uri]}
       @book.table_of_contents.resources.html.each do |resource|
@@ -181,7 +183,7 @@ module EPUBChop
       to_be_deleted_images = (all_images - not_to_be_deleted_images)
       to_be_deleted_images.each do |image|
         puts "\t\tremoving #{image}"
-        File.delete("#{extract_dir}/#{image}")
+        File.delete("#{extract_dir}/#{image}") if File.exists?("#{extract_dir}/#{image}")
       end
 
       to_be_deleted_images
@@ -206,7 +208,7 @@ module EPUBChop
       cover_path = ''
       number_of_subdirectories.times{ cover_path += '../'}
 
-      cover_path += @book.cover.exists? ? @book.cover.exists?.to_s : ''
+      cover_path += @book.cover && @book.cover.exists? ? @book.cover.exists?.to_s : ''
 
       data = <<DATA
 <?xml version="1.0" encoding="utf-8" standalone="no"?>
@@ -219,8 +221,8 @@ module EPUBChop
   <body>
   <div style="margin-top:100px;width:500px;margin-left:auto;margin-right:auto;">
     <div style='text-align:center;'>
-      <h2>#{CGI.escape_html(@text1)}</h2>
-      <span>#{CGI.escape_html(@text2)}</span>
+      <h2>#{CGI.escape_html(@text1 ? @text1 : '')}</h2>
+      <span>#{CGI.escape_html(@text2 ? @text2 : '')}</span>
     </div>
 
     <div style="margin-top:20px;">
@@ -229,23 +231,25 @@ module EPUBChop
       </div>
 
       <div style='padding-top:10px;'>
-        <h3>#{CGI.escape_html(@book.titles.first)}</h3>
+        <h3>#{CGI.escape_html(@book.titles.first ? @book.titles.first : '' )}</h3>
       </div>
 
       <div>
-        <h4>#{CGI.escape_html(@book.creators.first.name)}</h4>
+        <h4>#{CGI.escape_html(@book.creators.first ? @book.creators.first.name : '')}</h4>
       </div>
 
     </div>
 
     <br />
 
-    <div style="clear:both;text-align:center;font-size:0.5em;"> #{CGI.escape_html(@book.rights)} </div>
+    <div style="clear:both;text-align:center;font-size:0.5em;"> #{CGI.escape_html(@book.rights ? @book.rights : '')} </div>
   </div>
 </body>
 </html>
 
 DATA
+
+      data
     end
 
     def count_words(input)
@@ -254,6 +258,7 @@ DATA
       if @book
         @book.table_of_contents.resources.ncx.each do |resource|
           raw = Nokogiri::HTML(@book.table_of_contents.resources[resource[:uri]]) do |config|
+            #noinspection RubyResolve
             config.noblanks.nonet
           end
           raw.css('script').remove
@@ -289,6 +294,8 @@ DATA
       how_many_words_left = allowed_words - word_counter
       if how_many_words_left > 0
         resource_to_split_name = @resource_word_count.keys[resource_allowed_word_count.length]
+
+        #noinspection RubyLocalVariableNamingConvention
         word_count_of_resource_to_split = @resource_word_count[resource_to_split_name]
         if  how_many_words_left < word_count_of_resource_to_split
           resource_allowed_word_count.store(resource_to_split_name, how_many_words_left)
