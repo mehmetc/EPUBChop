@@ -200,6 +200,8 @@ module EPUBChop
         @text1 = options[:text] || 'Continue reading? Go to your local library or buy the book.'
         @text2 = ''
       end
+
+      @chop_by = options[:chop_by] || :spine
     end
 
     def empty_file_with_cover(filename)
@@ -256,7 +258,10 @@ DATA
       @book = EPUBInfo.get(input)
       resource_word_count = {}
       if @book
-        @book.table_of_contents.resources.ncx.each do |resource|
+        resources = @book.table_of_contents.resources.to_a
+        chop_by = @chop_by.eql?(:ncx)  ? @book.table_of_contents.resources.ncx : @book.table_of_contents.resources.spine
+
+        chop_by.each do |resource|
           raw = Nokogiri::HTML(@book.table_of_contents.resources[resource[:uri]]) do |config|
             #noinspection RubyResolve
             config.noblanks.nonet
@@ -264,7 +269,7 @@ DATA
           raw.css('script').remove
           raw.css('style').remove
           size = raw.at_css('body').text.split.size
-          resource_word_count.store(resource[:uri], size)
+          resource_word_count[resource[:uri]] = size
         end
       end
       # resource_word_count.values.inject(0){|sum, i| sum + i}
