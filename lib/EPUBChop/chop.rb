@@ -39,11 +39,9 @@ module EPUBChop
 
       return rebuild_epub_from_tmp_dir(extract_dir)
     rescue Zip::ZipError => e
-      raise RuntimeError, "Error processing EPUB #{@book.table_of_contents.parser.path}.\n #{e.message}"
+      raise RuntimeError, "Error processing EPUB #{@book.table_of_contents.parser.path}.\n #{e.message}", e.backtrace
     rescue Exception => e
-      puts "Chopping went wrong for #{@book.table_of_contents.parser.path}. \n #{e.message}"
-      puts e.backtrace
-
+      raise RuntimeError, "Chopping went wrong for #{@book.table_of_contents.parser.path}.\n #{e.message}", e.backtrace
       return nil
     ensure
       FileUtils.remove_entry_secure(extract_dir)
