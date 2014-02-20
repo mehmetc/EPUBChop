@@ -41,8 +41,8 @@ module EPUBChop
     rescue Zip::ZipError => e
       raise RuntimeError, "Error processing EPUB #{@book.table_of_contents.parser.path}.\n #{e.message}", e.backtrace
     rescue Exception => e
+      puts e.backtrace.join("\n")
       raise RuntimeError, "Chopping went wrong for #{@book.table_of_contents.parser.path}.\n #{e.message}", e.backtrace
-      return nil
     ensure
       FileUtils.remove_entry_secure(extract_dir)
     end
@@ -99,6 +99,7 @@ module EPUBChop
     end
 
     def chop_file(resource, processed_file_size)
+      #TODO: get a better algorithm to determine where to chop
       return resource if resource.nil?
 
       resource.css('script').remove
@@ -123,12 +124,9 @@ module EPUBChop
           window_begin = default_window_begin += 5
           window_end = 0
         else
-          data = resource.at_css("p:contains('#{look_for.join(' ')}')")
-          data = resource.at_css("body:contains('#{look_for.join(' ')}')") if data.nil?
-
-          #data =
-
-
+          look_for.map! {|m| m.gsub("'", "\'")}
+          data = resource.at_css("p:contains(\"#{look_for.join(' ')}\")")
+          data = resource.at_css("body:contains(\"#{look_for.join(' ')}\")") if data.nil?
 
           window_begin -= 1
           window_end += 1
@@ -195,6 +193,7 @@ module EPUBChop
         file = Nokogiri::HTML(File.read("#{extract_dir}/#{resource[:uri]}"))
 
         all_images.each do |image|
+          next if image.nil?
           i = image.split('/').last
           data = file.at_css("img[src$='#{i}']")
 
@@ -206,6 +205,7 @@ module EPUBChop
 
       to_be_deleted_images = (all_images - not_to_be_deleted_images)
       to_be_deleted_images.each do |image|
+        next if image.nil?
         puts "\t\tremoving #{image}" if @verbose
         File.delete("#{extract_dir}/#{image}") if File.exists?("#{extract_dir}/#{image}")
       end
