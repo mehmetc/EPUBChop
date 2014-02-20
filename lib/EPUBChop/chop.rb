@@ -1,3 +1,4 @@
+#encoding: UTF-8
 require 'nokogiri'
 require 'epubinfo'
 require 'tempfile'
@@ -38,9 +39,9 @@ module EPUBChop
 
       return rebuild_epub_from_tmp_dir(extract_dir)
     rescue Zip::ZipError => e
-      raise RuntimeError, "Error processing EPUB. #{e.message}"
+      raise RuntimeError, "Error processing EPUB #{@book.table_of_contents.parser.path}.\n #{e.message}"
     rescue Exception => e
-      puts "Chopping went wrong. #{e.message}"
+      puts "Chopping went wrong for #{@book.table_of_contents.parser.path}. \n #{e.message}"
       puts e.backtrace
 
       return nil
@@ -80,56 +81,81 @@ module EPUBChop
 
           else
             #noinspection RubyResolve
-            resource = Nokogiri::XML(@book.table_of_contents.resources[filename]) do |config|
+            resource = Nokogiri::HTML(@book.table_of_contents.resources[filename]) do |config|
+            #resource = Nokogiri::HTML.parse(@book.table_of_contents.resources[filename], 'UTF-8') do |config|
               config.noblanks.nonet
             end
-            resource.css('script').remove
-            resource.css('style').remove
-            resource_text = resource.at_css('body').text.split[0..processed_file_size]
-            #resource_text_length = resource_text.length
+            resource.encoding = 'UTF-8'
 
-            # get a string that can be found
-            data = nil
-            window_begin = default_window_begin = 5
-            window_end = 0
-            while data.nil?
-              look_for = resource_text[(processed_file_size - window_begin)..(processed_file_size - window_end)]
-
-              if look_for.nil?
-                window_begin = default_window_begin += 5
-                window_end = 0
-              else
-                data = resource.at_css("*:contains('#{look_for.join(' ')}')")
-                window_begin -= 1
-                window_end += 1
-
-                if window_begin == window_end
-                  window_begin = default_window_begin += 5
-                  window_end = 0
-                end
-              end
-            end
-
-            #limit on found string
-            if data
-              next_data = data.next_element
-              while next_data
-                in_resource = resource.css(next_data.css_path)
-                in_resource.remove
-
-                next_data = data.nil? || data.next_element.to_s.length == 1 ? nil : data.next_element
-              end
-            end
+            resource = chop_file(resource, processed_file_size)
 
             #persist page
-            File.open("#{extract_dir}/#{filename}", 'w') do |f|
-              f.puts resource.to_xml(:save_with => Nokogiri::XML::Node::SaveOptions::NO_DECLARATION)
+            File.open("#{extract_dir}/#{filename}", 'w:UTF-8') do |f|
+              #  f.puts resource.to_xml(:save_with => Nokogiri::XML::Node::SaveOptions::NO_DECLARATION)
+              f.puts resource.serialize(:encoding => 'UTF-8', :save_with => Nokogiri::XML::Node::SaveOptions::NO_DECLARATION)
             end
 
           end
         end
       end
     end
+
+    def chop_file(resource, processed_file_size)
+      return resource if resource.nil?
+
+      resource.css('script').remove
+      resource.css('style').remove
+      resource_text = resource.at_css('body').text.split[0..processed_file_size]
+
+      # get a string that can be found
+      data = nil
+      window_begin = default_window_begin = 5
+      window_end = 0
+      while data.nil?
+        puts "data window:#{(processed_file_size - window_begin)}..#{(processed_file_size - window_end)}" if @verbose
+        processed_window_begin = processed_file_size - window_begin
+        processed_window_end   = processed_file_size - window_end
+
+        processed_window_begin = 0 if processed_window_begin < 0
+        processed_window_end   = processed_file_size
+
+        look_for = resource_text[processed_window_begin..processed_window_end]
+
+        if look_for.nil?
+          window_begin = default_window_begin += 5
+          window_end = 0
+        else
+          data = resource.at_css("p:contains('#{look_for.join(' ')}')")
+          data = resource.at_css("body:contains('#{look_for.join(' ')}')") if data.nil?
+
+          #data =
+
+
+
+          window_begin -= 1
+          window_end += 1
+
+          if window_begin == window_end
+            window_begin = default_window_begin += 5
+            window_end = 0
+          end
+        end
+      end
+
+      #limit on found string
+      if data
+        next_data = data.next_element
+        while next_data
+          in_resource = resource.css(next_data.css_path)
+          in_resource.remove
+
+          next_data = data.nil? || data.next_element.to_s.length == 1 ? nil : data.next_element
+        end
+      end
+
+      resource
+    end
+
 
     def rebuild_epub_from_tmp_dir(extract_dir)
       #zip new ebook
@@ -143,7 +169,7 @@ module EPUBChop
 
       #minetype should be the first entry and should not be zipped. Else FIDO will not know that this is an EPUB
       mimetype = epub_files.delete("#{extract_dir}/mimetype")
-      mimetype_entry = Zip::Entry.new(zipfile, mimetype.sub("#{extract_dir}/", ''), '', '', 0,0, Zip::Entry::STORED)
+      mimetype_entry = Zip::Entry.new(zipfile, mimetype.sub("#{extract_dir}/", ''), '', '', 0, 0, Zip::Entry::STORED)
       zipfile.add(mimetype_entry, mimetype) unless mimetype.nil?
 
       #all the other files
@@ -164,9 +190,9 @@ module EPUBChop
 
     #noinspection RubyInstanceMethodNamingConvention
     def remove_unused_images_from_tmp_dir(extract_dir)
-      puts 'removing unused media'
+      puts 'removing unused media' if @verbose
       not_to_be_deleted_images = []
-      all_images = @book.table_of_contents.resources.images.map {|i| i[:uri]}
+      all_images = @book.table_of_contents.resources.images.map { |i| i[:uri] }
       @book.table_of_contents.resources.html.each do |resource|
         file = Nokogiri::HTML(File.read("#{extract_dir}/#{resource[:uri]}"))
 
@@ -182,7 +208,7 @@ module EPUBChop
 
       to_be_deleted_images = (all_images - not_to_be_deleted_images)
       to_be_deleted_images.each do |image|
-        puts "\t\tremoving #{image}"
+        puts "\t\tremoving #{image}" if @verbose
         File.delete("#{extract_dir}/#{image}") if File.exists?("#{extract_dir}/#{image}")
       end
 
@@ -202,13 +228,14 @@ module EPUBChop
       end
 
       @chop_by = options[:chop_by] || :spine
+      @verbose = options[:verbose] || false
     end
 
     def empty_file_with_cover(filename)
       number_of_subdirectories = filename.split('/').size - 1
 
       cover_path = ''
-      number_of_subdirectories.times{ cover_path += '../'}
+      number_of_subdirectories.times { cover_path += '../' }
 
       cover_path += @book.cover && @book.cover.exists? ? @book.cover.exists?.to_s : ''
 
@@ -233,7 +260,7 @@ module EPUBChop
       </div>
 
       <div style='padding-top:10px;'>
-        <h3>#{CGI.escape_html(@book.titles.first ? @book.titles.first : '' )}</h3>
+        <h3>#{CGI.escape_html(@book.titles.first ? @book.titles.first : '')}</h3>
       </div>
 
       <div>
@@ -259,7 +286,7 @@ DATA
       resource_word_count = {}
       if @book
         resources = @book.table_of_contents.resources.to_a
-        chop_by = @chop_by.eql?(:ncx)  ? @book.table_of_contents.resources.ncx : @book.table_of_contents.resources.spine
+        chop_by = @chop_by.eql?(:ncx) ? @book.table_of_contents.resources.ncx : @book.table_of_contents.resources.spine
 
         chop_by.each do |resource|
           raw = Nokogiri::HTML(@book.table_of_contents.resources[resource[:uri]]) do |config|
