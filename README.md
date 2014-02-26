@@ -1,11 +1,11 @@
 EPUBChop [![Continuous Integration](https://travis-ci.org/mehmetc/EPUBChop.png?branch=master)](http://travis-ci.org/mehmetc/EPUBChop)
 ========
 
-Creates EPUB previews
+Creates EPUB samples
 
 ```
 $ ./bin/epubchop --help
-EPUBChop will create a preview version of an EPUB file.
+EPUBChop will create a sample version of an EPUB.
 
 Usage:
       epubchop [options] <filename>
@@ -27,6 +27,11 @@ epubchop --words 10 --base percentage -line1 "Want to read more?" -line2 "Buy th
 This gem depends on [![epubinfo](http://github.com/chdorner/epubinfo)] I made some additions to the gem but they are still in a branch. Until they get accepted I'll be using the [![epubinfo_with_toc](https://github.com/mehmetc/epubinfo/tree/table_of_contents)]
 gem.
 
+### Changes
+* 0.1.0
+    - Warning!!! I monkey patch rubyzip until they release an update(it is already fixed in the main branch). Apparently the latest Rubyzip inserts a placeholder for 64bit addressing by default. This breaks file recognition for tools like FIDO.
+
+
 ## Contributing to EPUBChop
 * Fork the project.
 * Create a new branch to implement your bugfixes or features
@@ -35,4 +40,4 @@ gem.
 
 ## Copyright
 
-Copyright (c) 2013 LIBIS/KULeuven, Mehmet Celik. See LICENSE for further details.
+Copyright (c) 2013-2014 LIBIS/KULeuven, Mehmet Celik. See LICENSE for further details.
