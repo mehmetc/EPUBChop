@@ -3,7 +3,7 @@ require 'nokogiri'
 require 'epubinfo'
 require 'tempfile'
 require 'zip'
-require 'lib/ext/zip/entry'
+require_relative 'zip/entry' # Monkey patch
 
 module EPUBChop
   class Chop
