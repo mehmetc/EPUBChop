@@ -182,7 +182,7 @@ module EPUBChop
                                       '',                                   #@extra
                                       0,                                    #@compressed_size
                                       0,                                    #@crc
-                                      Zip::Entry::STORED)                 #@comppressed_method
+                                      Zip::Entry::STORED)                   #@compression_method
 
       zipfile.add(mimetype_entry, mimetype) unless mimetype.nil?
 
