@@ -39,7 +39,7 @@ module EPUBChop
 
 
       return rebuild_epub_from_tmp_dir(extract_dir)
-    rescue Zip::ZipError => e
+    rescue Zip::Error => e
       raise RuntimeError, "Error processing EPUB #{@book.table_of_contents.parser.path}.\n #{e.message}", e.backtrace
     rescue Exception => e
       puts e.backtrace.join("\n")
@@ -84,14 +84,15 @@ module EPUBChop
             #resource = Nokogiri::HTML.parse(@book.table_of_contents.resources[filename], 'UTF-8') do |config|
               config.noblanks.nonet
             end
-            resource.encoding = 'UTF-8'
+            #resource.encoding = 'UTF-8'
 
             resource = chop_file(resource, processed_file_size)
 
             #persist page
             File.open("#{extract_dir}/#{filename}", 'w:UTF-8') do |f|
-              #  f.puts resource.to_xml(:save_with => Nokogiri::XML::Node::SaveOptions::NO_DECLARATION)
-              f.puts resource.serialize(:encoding => 'UTF-8', :save_with => Nokogiri::XML::Node::SaveOptions::NO_DECLARATION)
+              #f.puts resource.serialize(:encoding => 'ISO-8859-1', :save_with => Nokogiri::XML::Node::SaveOptions::FORMAT | Nokogiri::XML::Node::SaveOptions::NO_DECLARATION | Nokogiri::XML::Node::SaveOptions::AS_XHTML)
+              #f.puts resource.serialize(:encoding => 'UTF-8', :save_with => Nokogiri::XML::Node::SaveOptions::FORMAT | Nokogiri::XML::Node::SaveOptions::AS_XHTML)
+              f.puts resource.serialize(:encoding => resource.encoding, :save_with => Nokogiri::XML::Node::SaveOptions::FORMAT | Nokogiri::XML::Node::SaveOptions::NO_DECLARATION | Nokogiri::XML::Node::SaveOptions::AS_XHTML)
             end
 
           end
@@ -156,6 +157,15 @@ module EPUBChop
 
     def rebuild_epub_from_tmp_dir(extract_dir)
       #zip new ebook
+
+      Zip.setup do |z|
+        z.write_zip64_support = false
+        z.on_exists_proc = true
+        z.continue_on_exists_proc = true
+        z.unicode_names = true
+        z.default_compression = Zlib::BEST_COMPRESSION
+      end
+
       new_ebook_name = Tempfile.new(['epub', '.epub'], Dir.tmpdir)
       new_ebook_name_path = new_ebook_name.path
       new_ebook_name_path.gsub!('-', '')
@@ -166,7 +176,14 @@ module EPUBChop
 
       #minetype should be the first entry and should not be zipped. Else FIDO will not know that this is an EPUB
       mimetype = epub_files.delete("#{extract_dir}/mimetype")
-      mimetype_entry = Zip::Entry.new(zipfile, mimetype.sub("#{extract_dir}/", ''), '', '', 0, 0, Zip::Entry::STORED)
+      mimetype_entry = Zip::Entry.new(zipfile,                              #@zipfile
+                                      mimetype.sub("#{extract_dir}/", ''),  #@name
+                                      '',                                   #@comment
+                                      '',                                   #@extra
+                                      0,                                    #@compressed_size
+                                      0,                                    #@crc
+                                      Zip::Entry::STORED)                 #@comppressed_method
+
       zipfile.add(mimetype_entry, mimetype) unless mimetype.nil?
 
       #all the other files

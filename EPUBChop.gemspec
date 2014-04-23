@@ -22,6 +22,6 @@ Gem::Specification.new do |spec|
   spec.add_development_dependency "rake"
   spec.add_development_dependency "rspec"
   spec.add_runtime_dependency "epubinfo_with_toc"
-  spec.add_runtime_dependency "rubyzip", "~> 1.0"
+  spec.add_runtime_dependency "rubyzip", "~> 1.1.3"
   spec.add_runtime_dependency "nokogiri"
 end

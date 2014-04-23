@@ -30,4 +30,20 @@ describe 'EPUBChop' do
       deviation.should < 5
     end
 
+    context 'created epub file' do
+      before(:all) do
+        b = EPUBChop.get('./spec/epub/Verne_20000_West_pg11393.epub', {:base => :percentage, :words => 10})
+        @chopped = b.chop()
+      end
+
+      it 'should contain a minetype file' do
+        f= File.open(@chopped, 'rb')
+        first_100_bytes = f.read(100)
+        f.close
+
+        first_100_bytes.should match(/mimetypeapplication\/epub\+zip/)
+      end
+
+    end
+
 end
