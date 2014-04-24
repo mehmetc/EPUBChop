@@ -1,4 +1,4 @@
-#encoding: UTF-8
+# coding: utf-8
 require 'nokogiri'
 require 'epubinfo'
 require 'tempfile'
@@ -80,19 +80,19 @@ module EPUBChop
 
           else
             #noinspection RubyResolve
-            resource = Nokogiri::HTML(@book.table_of_contents.resources[filename]) do |config|
-            #resource = Nokogiri::HTML.parse(@book.table_of_contents.resources[filename], 'UTF-8') do |config|
+            resource = Nokogiri::HTML(@book.table_of_contents.resources[filename].force_encoding('UTF-8')) do |config|
               config.noblanks.nonet
             end
-            #resource.encoding = 'UTF-8'
 
+#            resource.encoding = 'UTF-8'
             resource = chop_file(resource, processed_file_size)
 
             #persist page
+            save_options = Nokogiri::XML::Node::SaveOptions::FORMAT | Nokogiri::XML::Node::SaveOptions::NO_DECLARATION | Nokogiri::XML::Node::SaveOptions::AS_XHTML
             File.open("#{extract_dir}/#{filename}", 'w:UTF-8') do |f|
-              #f.puts resource.serialize(:encoding => 'ISO-8859-1', :save_with => Nokogiri::XML::Node::SaveOptions::FORMAT | Nokogiri::XML::Node::SaveOptions::NO_DECLARATION | Nokogiri::XML::Node::SaveOptions::AS_XHTML)
-              #f.puts resource.serialize(:encoding => 'UTF-8', :save_with => Nokogiri::XML::Node::SaveOptions::FORMAT | Nokogiri::XML::Node::SaveOptions::AS_XHTML)
-              f.puts resource.serialize(:encoding => resource.encoding, :save_with => Nokogiri::XML::Node::SaveOptions::FORMAT | Nokogiri::XML::Node::SaveOptions::NO_DECLARATION | Nokogiri::XML::Node::SaveOptions::AS_XHTML)
+              #f.puts resource.serialize(:encoding => 'ISO-8859-1', :save_with => save_options)
+              f.puts resource.serialize(:encoding => 'UTF-8', :save_with => save_options)
+              #f.puts resource.serialize(:encoding => resource.encoding, :save_with => save_options)
             end
 
           end
@@ -150,6 +150,16 @@ module EPUBChop
           next_data = data.nil? || data.next_element.to_s.length == 1 ? nil : data.next_element
         end
       end
+
+      meta = Nokogiri::XML::Node.new('meta', resource)
+      meta['http-equiv'] = "Content-Type"
+      meta['content'] = "text/html; charset=UTF-8"
+
+      meta_charset = Nokogiri::XML::Node.new('meta', resource)
+      meta_charset['charset'] = 'UTF-8'
+
+      resource.css('head').first << meta
+      resource.css('head').first << meta_charset
 
       resource
     end

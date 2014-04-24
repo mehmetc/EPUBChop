@@ -35,14 +35,17 @@ begin
     chop_by = options[:chop]
     verbose = options[:verbose]
 
-    puts "loading EPUB #{filename}"
-    b=EPUBChop.get(filename, :chop_by => chop_by.to_sym, :verbose => verbose)
-    puts 'chopping EPUB'
-    c=b.chop({:base => base.to_s, :words => words, :text => text})
-    puts 'rebuilding EPUB'
-    FileUtils.move(c, "chopped_#{File.basename(filename)}")
+    Dir.glob(filename).each do |f|
+      puts "loading EPUB #{f}"
+      b=EPUBChop.get(f, :chop_by => chop_by.to_sym, :verbose => verbose)
+      puts 'chopping EPUB'
+      c=b.chop({:base => base.to_s, :words => words, :text => text})
+      puts 'rebuilding EPUB'
+      FileUtils.move(c, "chopped_#{File.basename(f)}")
+    end
 
 rescue Exception => e
   puts "An error occured\n#{e.message}"
+  puts e.backtrace.join("/n")
   exit 1
 end
