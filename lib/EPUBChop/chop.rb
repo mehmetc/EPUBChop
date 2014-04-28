@@ -155,11 +155,11 @@ module EPUBChop
       meta['http-equiv'] = "Content-Type"
       meta['content'] = "text/html; charset=UTF-8"
 
-      meta_charset = Nokogiri::XML::Node.new('meta', resource)
-      meta_charset['charset'] = 'UTF-8'
+    #  meta_charset = Nokogiri::XML::Node.new('meta', resource)
+    #  meta_charset['charset'] = 'UTF-8'
 
       resource.css('head').first << meta
-      resource.css('head').first << meta_charset
+    # resource.css('head').first << meta_charset
 
       resource
     end
@@ -231,11 +231,22 @@ module EPUBChop
         end
       end
 
+      metadata = Nokogiri::XML(File.read("#{extract_dir}/#{@book.table_of_contents.parser.metadata_path}"))
       to_be_deleted_images = (all_images - not_to_be_deleted_images)
       to_be_deleted_images.each do |image|
         next if image.nil?
         puts "\t\tremoving #{image}" if @verbose
         File.delete("#{extract_dir}/#{image}") if File.exists?("#{extract_dir}/#{image}")
+
+
+        image_in_metadata = metadata.xpath("//default:item[contains(@href,'#{File.basename(image)}' )]", :default => 'http://www.idpf.org/2007/opf')
+        if image_in_metadata.count > 0
+          image_in_metadata.remove
+        end
+      end
+
+      File.open("#{extract_dir}/#{@book.table_of_contents.parser.metadata_path}", 'wb') do |f|
+        f.puts metadata.to_xml(encoding: 'UTF-8')
       end
 
       to_be_deleted_images
