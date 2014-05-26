@@ -293,7 +293,7 @@ module EPUBChop
 
     <div style="margin-top:20px;">
       <div style="float:left;margin-right:30px;max-height: 190px; min-height: 120px; width: 125px;">
-        <img src="#{cover_path}" alt="" style="width:100%" />
+        <img id="epubchop_coverimg" src="#{cover_path}" alt="" style="width:100%" />
       </div>
 
       <div style='padding-top:10px;'>
